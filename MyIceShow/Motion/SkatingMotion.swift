@@ -79,6 +79,7 @@ struct RoutineClip: Identifiable, Codable, Equatable {
 struct MotionSample {
     var position: SIMD3<Float> = .zero
     var yaw: Float = 0
+    var entryYaw: Float = 0
     var shape: Float = 0
     var move: SkatingMove = .glide
     var clipID: UUID?
@@ -100,14 +101,16 @@ enum SkatingMotion {
         var distance: Double = 0
         var rotation: Double = 0
 
-        for clip in clips {
+        for (index, clip) in clips.enumerated() {
             let endTime = startTime + clip.duration
-            if elapsed < endTime {
+            if elapsed < endTime || index == clips.count - 1 {
                 return sample(
                     clip: clip,
                     localTime: elapsed - startTime,
                     distance: distance,
-                    rotation: rotation
+                    rotation: rotation,
+                    entrySpeed: index == 0 ? 0 : boundarySpeed(clips[index - 1], clip),
+                    exitSpeed: index + 1 == clips.count ? 0 : boundarySpeed(clip, clips[index + 1])
                 )
             }
             startTime = endTime
@@ -115,20 +118,22 @@ enum SkatingMotion {
             rotation += setupRotation(for: clip.move, after: rotation) + clip.move.rotation
         }
 
-        var result = rootSample(distance: distance, rotation: rotation)
-        result.clipID = clips.last?.id
-        result.move = clips.last?.move ?? .glide
-        return result
+        return rootSample(distance: distance, rotation: rotation)
     }
 
     private static func sample(
         clip: RoutineClip,
         localTime: Double,
         distance: Double,
-        rotation: Double
+        rotation: Double,
+        entrySpeed: Double,
+        exitSpeed: Double
     ) -> MotionSample {
         let progress = localTime / clip.duration
-        let travel = eased(progress)
+        let travel = travelProgress(
+            progress, distance: clip.move.travel, duration: clip.duration,
+            entrySpeed: entrySpeed, exitSpeed: exitSpeed
+        )
         let rotationProgress = clip.move == .waltzJump
             ? flightProgress(localTime: localTime, duration: clip.duration)
             : eased(progress)
@@ -139,6 +144,7 @@ enum SkatingMotion {
             distance: distance + clip.move.travel * travel,
             rotation: rotation + setup * setupProgress + clip.move.rotation * rotationProgress
         )
+        result.entryYaw = rootSample(distance: distance, rotation: rotation).yaw
         result.shape = Float(pow(sin(.pi * progress), 2))
         result.move = clip.move
         result.clipID = clip.id
@@ -165,6 +171,24 @@ enum SkatingMotion {
     private static func setupRotation(for move: SkatingMove, after rotation: Double) -> Double {
         guard move == .waltzJump else { return 0 }
         return -atan2(sin(rotation), cos(rotation))
+    }
+
+    private static func boundarySpeed(_ first: RoutineClip, _ second: RoutineClip) -> Double {
+        min(first.move.travel / first.duration, second.move.travel / second.duration)
+    }
+
+    private static func travelProgress(
+        _ progress: Double, distance: Double, duration: Double,
+        entrySpeed: Double, exitSpeed: Double
+    ) -> Double {
+        guard distance > 0 else { return 0 }
+        let entryTangent = entrySpeed * duration / distance
+        let exitTangent = exitSpeed * duration / distance
+        let squared = progress * progress
+        let cubed = squared * progress
+        return 3 * squared - 2 * cubed
+            + (cubed - 2 * squared + progress) * entryTangent
+            + (cubed - squared) * exitTangent
     }
 
     private static func eased(_ progress: Double) -> Double {

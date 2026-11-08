@@ -12,6 +12,8 @@ struct StudioView: View {
     @State private var clips: [RoutineClip]
     @State private var selectedID: UUID?
     @State private var costume: CostumeColor = .lilac
+    @State private var appearance = SkaterAppearance.importedSkin
+    @State private var importStatus = ImportedSkaterStatus.loading
     @State private var showTitle = "My first show"
     @State private var currentShowID: UUID?
     @State private var savedContent: ShowContent?
@@ -48,6 +50,15 @@ struct StudioView: View {
     private var canSave: Bool {
         let title = showTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         return !clips.isEmpty && !title.isEmpty && title.count <= ShowContent.maximumTitleLength
+    }
+
+    private var rigDescription: String {
+        guard appearance == .importedSkin else { return "Fixed-length geometry · procedural study rig" }
+        switch importStatus {
+        case .loading: return "Loading skinned test asset…"
+        case .ready: return "Imported test skin · 15-joint study rig"
+        case .failed(let message): return "Rig import failed: \(message) Choose Articulated to continue."
+        }
     }
 
     var body: some View {
@@ -130,7 +141,7 @@ struct StudioView: View {
 
     private var stage: some View {
         VStack(spacing: 0) {
-            RinkView(sample: sample, costume: costume)
+            RinkView(sample: sample, costume: costume, appearance: appearance) { importStatus = $0 }
                 .frame(height: 300)
                 .overlay(alignment: .topLeading) {
                     Label(player.isPlaying ? sample.move.title : "Your practice rink", systemImage: "sparkle")
@@ -164,6 +175,32 @@ struct StudioView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
+            .background(.white)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 4) {
+                    ForEach(SkaterAppearance.allCases) { option in
+                        Button {
+                            appearance = option
+                        } label: {
+                            Text(option.rawValue)
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                                .background(appearance == option ? StudioTheme.lavender : .clear, in: RoundedRectangle(cornerRadius: 12))
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(appearance == option ? .isSelected : [])
+                    }
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Character study")
+                Text(rigDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("rig-import-status")
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
             .background(.white)
         }
         .clipShape(RoundedRectangle(cornerRadius: 24))

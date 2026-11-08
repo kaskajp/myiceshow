@@ -34,7 +34,7 @@ Proposed animation complexity:
 - **High:** airborne rotation, rapid turns, spin pivots, or difficult positions.
 - **Very high:** coupled skaters or complex multi-element transitions.
 
-Sources are linked by identifier in the final column. **All per-variation demonstration reviews are pending.** S4 and S6 provide starting points for demonstration searches; a page or written syllabus is not a reviewed demonstration. A family source does not establish every listed variation. Entries marked **Source pending** still need a primary reference. No animation is approved from this table alone.
+Sources are linked by identifier in the final column. **All per-variation demonstration reviews are pending.** The [animation reference register](animation-reference-register.md) now records 12 exact tutorial links with publisher provenance and metadata checks, but no coaching approval. A page, title, or written syllabus is not a reviewed demonstration. A family source does not establish every listed variation. Entries marked **Source pending** still need a primary reference. No animation is approved from this table alone.
 
 ## Movement families
 
@@ -139,7 +139,7 @@ These are pair-skating families, not a complete partner catalog. Ice dance holds
 
 ## Demonstration and expert review backlog
 
-Every row still needs variation-level review. For each approved variation, record:
+Every row still needs variation-level review. Located tutorial candidates and the five-move validation set's remaining gaps are tracked in the [reference register](animation-reference-register.md). For each approved variation, record:
 
 1. Demonstration URL, publisher, timestamp or lesson segment, and access date.
 2. Exact foot, edge, direction, entry, exit, and rotation/position shown.

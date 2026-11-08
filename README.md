@@ -10,6 +10,8 @@ Read [the product brief](BRIEF.md) for the experience, audience, music approach,
 
 The [skating move research draft](docs/skating-move-catalog.md) starts the catalog with 59 movement families, proposed difficulty tiers and prerequisites, animation estimates, federation sources, and explicit research gaps. It is not yet comprehensive or coach-validated; demonstration review is still pending.
 
+The [animation reference register](docs/animation-reference-register.md) records 12 tutorial candidates with checked publisher provenance and metadata. The [animation pipeline notes](docs/animation-pipeline.md) distinguish the implemented pose rig, continuous travel, and anchored spin-support study from the production rig, reviewed clips, and device measurements still needed. A [project-authored skinned USDZ fixture](docs/skater-fixture.md) now imports and follows those poses; Studio's Imported skin / Articulated buttons compare both appearances without changing the routine.
+
 ## Run the animation lab
 
 Verified toolchain: Xcode 27.0, XcodeGen 2.46.0, and an iPhone 16 Pro simulator running iOS 18.6. The prototype provisionally targets iOS 18 or later and uses SwiftUI, RealityKit, and AVFoundation without third-party packages.

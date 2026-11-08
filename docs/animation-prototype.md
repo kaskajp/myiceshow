@@ -27,20 +27,27 @@ The routine is limited to 60 seconds. Saving is explicit: saved shows survive ap
 | `MyIceShow/Navigation/StudioRequest.swift` | Identifiable requests to create or open a show in Studio |
 | `MyIceShow/Home/HomeView.swift` | Welcome screen, Studio entry points, and recent saved-show shortcuts |
 | `MyIceShow/Motion/SkatingMotion.swift` | Move vocabulary, durations, absolute-time sampling, root path, and pose envelope |
+| `MyIceShow/Motion/SkaterRig.swift` | Fixed-length articulated pose model and two-bone limb solving |
+| `MyIceShow/Motion/SkaterSkeleton.swift` | Parent-local skeletal transforms derived from the sampled pose |
 | `MyIceShow/Playback/ShowPlayer.swift` | AVAudioPlayer clock, play/pause/seek, display refresh, and interruption handling |
 | `MyIceShow/Playback/TimingPulse.swift` | Generates an in-memory PCM WAV timing fixture; no downloaded music |
-| `MyIceShow/Rendering/RinkView.swift` | Non-AR RealityKit scene, fixed camera, rink, and primitive skater |
+| `MyIceShow/Rendering/RinkView.swift` | Non-AR RealityKit scene, fixed camera, rink, and appearance comparison |
+| `MyIceShow/Rendering/ImportedSkater.swift` | Asynchronous USDZ import, schema validation, skin posing, and costume material updates |
+| `MyIceShow/Assets/SkaterFixture.usdz` | Project-authored weighted character fixture, not production art |
+| `tools/generate-skater-fixture.py` | Rebuilds and validates the bundled skin using native USD tools |
 | `MyIceShow/Studio/StudioView.swift` | Routine ownership, editing, controls, and presentation |
 | `MyIceShow/Studio/StudioTheme.swift` | Prototype colors and costume-color choices |
 | `MyIceShow/Shows/ShowDocument.swift` | Serializable show content, stable identities, archive version, and validation |
 | `MyIceShow/Shows/ShowLibrary.swift` | Validated local reads, atomic saves, and library ordering |
 | `MyIceShow/Shows/ShowLibraryView.swift` | Saved-show selection, empty state, and read-error/retry presentation |
 
-The tab shell owns one shared show library and navigation selection. Home and Shows receive display data and callbacks; neither loads its own library. Studio retains its editing state across tab switches and passes a sampled pose and costume color into the renderer. The renderer does not load shows or fetch services. There are no third-party runtime packages, external assets, network requests, account systems, or camera-permission requests in this prototype.
+The tab shell owns one shared show library and navigation selection. Home and Shows receive display data and callbacks; neither loads its own library. Studio retains its editing state across tab switches and passes a sampled pose, costume color, and lab appearance into the renderer. The renderer loads the bundled project-authored skin but does not load shows or fetch services. There are no third-party runtime packages, third-party assets, network requests, account systems, or camera-permission requests in this prototype.
+
+The default Imported skin appearance and the Articulated primitive mannequin share the same pose and root placement. Their comparison buttons do not change saved show content or reset playback. Import failures appear explicitly rather than silently falling back to the mannequin. The [skinned fixture notes](skater-fixture.md) record actual import/deformation checks and the production-asset gates still open.
 
 While playing, elapsed time comes from `AVAudioPlayer.currentTime`, including when muted. A display link requests presentation updates; it does not accumulate elapsed frame durations. Scrubbing samples the same motion function at the requested time. Editing stops and resets playback before the routine changes.
 
-Each move begins and ends in a shared neutral pose. Root displacement and unwrapped heading accumulate across clips, including repeated moves and reordered pairs. A waltz-jump study first aligns its heading to forward travel during the approach, then performs the half-turn during flight. That preparation turn is procedural, not an expert-reviewed entry. Travel follows one circular path and deliberately eases to rest at clip boundaries. Spin travel is stationary; its procedural rotation is not a model of actual blade pivots.
+Each move begins and ends in a shared neutral pose. Root displacement and unwrapped heading accumulate across clips, including repeated moves and reordered pairs. A waltz-jump study first aligns its heading to forward travel during the approach, then performs the half-turn during flight. That preparation turn is procedural, not an expert-reviewed entry. Travel follows one circular path with shared boundary speeds between traveling moves; it eases to rest at routine endpoints and beside stationary spins. The upright-spin study anchors the supporting left blade's center to its clip-entry position and offsets the body around that pivot. Placement is derived directly from the sampled time, including the final frame, so it does not depend on playback or seeking history. This fixed pivot is not a model of real blade mechanics. The [pipeline notes](animation-pipeline.md) describe the fixed-length rig and measured transition/contact checks.
 
 The waltz-jump study uses a fixed **0.6-second** airborne interval with a **0.6-unit** peak elevation. Changing card duration changes approach and exit time, not that interval. These numbers are fixture parameters, not biomechanical measurements or coaching recommendations.
 
@@ -142,11 +149,11 @@ Local documentation links and whitespace checks also passed, with existing Markd
 
 ## Remaining decisions and limitations
 
-- **Actual skating:** poses are procedural stand-ins. Limbs scale between endpoints rather than maintaining an anatomical skeleton; support-foot geometry, blade pivots, edges, and landings need a real rig and skating-expert review.
-- **Transitions:** position and heading continuity are checked, but stopping between moves is not production-quality flow. No arbitrary path planner or transition-animation library exists.
+- **Actual skating:** poses remain procedural stand-ins, displayed on either fixed-length primitives or a project-authored skinned fixture. Neither is a validated anatomical model. Support-foot geometry, blade pivots, edges, and landings still need production assets and skating-expert review.
+- **Transitions:** root position, heading, and travel-speed continuity are checked, including the spin's rendered placement correction. A fixed supporting-blade-center anchor is implemented for upright spins only. Clip-boundary poses still pass through a shared neutral stance; no arbitrary path planner, general contact-aware blending, or production transition-animation library exists.
 - **Direction:** the lab accumulates turns and jump rotation in one direction. It does not validate mirrored skating or all legal entry/exit combinations.
 - **Timing:** fixed airborne timing is demonstrated in the sampler. Real music markers, expressive timing, frame/audio latency, and speed-dependent travel remain unvalidated.
-- **Assets:** the skater consists of primitive geometry. There are no imported clips, garment meshes, character customization, or licensed demonstration assets.
+- **Assets:** one project-authored skinned USDZ fixture imports and follows the pose sampler. There are no imported skating clips, production garment assets, full character customization, or licensed demonstration assets.
 - **Performance:** no physical device, minimum-device budget, frame-time capture, battery measurement, or profiling comparison has been completed.
 - **Product scope:** named local shows are implemented, but autosave, backup/export, audio import, the five-song soundtrack, video export, parental gates, and production accessibility/child-usability assessment remain outside this prototype.
 

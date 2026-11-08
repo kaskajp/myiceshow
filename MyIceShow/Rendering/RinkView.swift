@@ -4,36 +4,64 @@ import SwiftUI
 struct RinkView: UIViewRepresentable {
     let sample: MotionSample
     let costume: CostumeColor
+    let appearance: SkaterAppearance
+    let onImportStatus: (ImportedSkaterStatus) -> Void
 
     func makeCoordinator() -> RinkRenderer {
         RinkRenderer()
     }
 
     func makeUIView(context: Context) -> ARView {
-        context.coordinator.makeView()
+        context.coordinator.makeView(onImportStatus: onImportStatus)
     }
 
     func updateUIView(_ view: ARView, context: Context) {
-        context.coordinator.update(sample: sample, costume: costume)
+        context.coordinator.update(sample: sample, costume: costume, appearance: appearance)
+    }
+
+    static func dismantleUIView(_ view: ARView, coordinator: RinkRenderer) {
+        coordinator.stopLoading()
     }
 }
 
 @MainActor
 final class RinkRenderer {
     private let skater = Entity()
+    private let articulatedSkater = Entity()
     private let torso = ModelEntity()
     private var bones: [String: ModelEntity] = [:]
     private var joints: [String: ModelEntity] = [:]
     private var currentCostume: CostumeColor?
+    private var importedSkater: ImportedSkater?
+    private var importTask: Task<Void, Never>?
+    private var lastSample = MotionSample()
+    private var lastCostume = CostumeColor.lilac
+    private var lastAppearance = SkaterAppearance.importedSkin
 
-    func makeView() -> ARView {
+    func makeView(onImportStatus: @escaping (ImportedSkaterStatus) -> Void) -> ARView {
         let view = ARView(frame: .zero, cameraMode: .nonAR, automaticallyConfigureSession: false)
         view.environment.background = .color(UIColor(red: 0.88, green: 0.91, blue: 0.98, alpha: 1))
         view.renderOptions = [.disableMotionBlur, .disableDepthOfField]
         let world = AnchorEntity(world: .zero)
         world.addChild(makeRink())
         world.addChild(skater)
+        skater.addChild(articulatedSkater)
         makeSkater()
+        importTask = Task { [weak self] in
+            do {
+                let imported = try await ImportedSkater.load()
+                try Task.checkCancellation()
+                guard let self else { return }
+                importedSkater = imported
+                skater.addChild(imported.entity)
+                currentCostume = nil
+                update(sample: lastSample, costume: lastCostume, appearance: lastAppearance)
+                onImportStatus(.ready)
+            } catch {
+                guard !Task.isCancelled else { return }
+                onImportStatus(.failed(error.localizedDescription))
+            }
+        }
 
         let camera = PerspectiveCamera()
         camera.camera.fieldOfViewInDegrees = 43
@@ -42,87 +70,79 @@ final class RinkRenderer {
 
         let light = DirectionalLight()
         light.light.intensity = 2_500
+        light.shadow = .init(maximumDistance: 20, depthBias: 1)
         light.look(at: .zero, from: [3, 8, 4], relativeTo: nil)
         world.addChild(light)
         view.scene.addAnchor(world)
         return view
     }
 
-    func update(sample: MotionSample, costume: CostumeColor) {
-        skater.position = sample.position
+    func stopLoading() {
+        importTask?.cancel()
+    }
+
+    func update(sample: MotionSample, costume: CostumeColor, appearance: SkaterAppearance) {
+        lastSample = sample
+        lastCostume = costume
+        lastAppearance = appearance
+        let pose = SkaterRig.pose(for: sample)
+        skater.position = SkaterRig.rootPosition(for: sample, pose: pose)
         skater.orientation = simd_quatf(angle: sample.yaw, axis: [0, 1, 0])
+        articulatedSkater.isEnabled = appearance == .articulated
+        importedSkater?.entity.isEnabled = appearance == .importedSkin
+        importedSkater?.update(pose: pose)
         if currentCostume != costume {
             torso.model?.materials = [material(costume.uiColor)]
+            bones["shoulders"]?.model?.materials = [material(costume.uiColor)]
+            importedSkater?.updateCostume(material(costume.uiColor))
             currentCostume = costume
         }
 
-        let shape = sample.shape
-        let crouch: Float = sample.move == .lunge ? 0.43 * shape : 0.06 * shape
-        let hipHeight: Float = 0.98 - crouch
-        let lean: Float = sample.move == .lunge ? 0.23 * shape : 0.04 * shape
-        let hipLeft = SIMD3<Float>(-0.13, hipHeight, 0)
-        let hipRight = SIMD3<Float>(0.13, hipHeight, 0)
-        let shoulderLeft = SIMD3<Float>(-0.23, hipHeight + 0.49, lean)
-        let shoulderRight = SIMD3<Float>(0.23, hipHeight + 0.49, lean)
-        var ankleLeft = SIMD3<Float>(-0.14, 0.08, 0)
-        var ankleRight = SIMD3<Float>(0.14, 0.08, 0)
-        var kneeLeft = SIMD3<Float>(-0.14, hipHeight * 0.53, 0.05)
-        var kneeRight = SIMD3<Float>(0.14, hipHeight * 0.53, 0.05)
-
-        switch sample.move {
-        case .glide:
-            ankleRight += SIMD3(0.08, 0.14, -0.4) * shape
-            kneeRight += SIMD3(0.03, 0.06, -0.12) * shape
-        case .threeTurn:
-            ankleRight += SIMD3(0.09, 0.16, -0.18) * shape
-        case .uprightSpin:
-            ankleLeft.x += 0.14 * shape
-            ankleRight += SIMD3(-0.04, 0.27, -0.12) * shape
-            kneeRight += SIMD3(0.05, 0.08, 0.1) * shape
-        case .waltzJump:
-            ankleRight += SIMD3(0.04, 0.16, -0.22) * shape
-        case .lunge:
-            ankleLeft.z += 0.35 * shape
-            kneeLeft.z += 0.43 * shape
-            ankleRight.z -= 0.85 * shape
-            kneeRight.z -= 0.42 * shape
-        }
-
-        let armReach: Float = sample.move == .uprightSpin ? 0.45 - 0.28 * shape : 0.45
-        let elbowLeft = shoulderLeft + SIMD3<Float>(-armReach * 0.55, -0.1, 0.06)
-        let elbowRight = shoulderRight + SIMD3<Float>(armReach * 0.55, -0.1, 0.06)
-        let wristLeft = shoulderLeft + SIMD3<Float>(-armReach, -0.16, 0.15 * shape)
-        let wristRight = shoulderRight + SIMD3<Float>(armReach, -0.16, 0.15 * shape)
-
-        setBone("leftThigh", from: hipLeft, to: kneeLeft)
-        setBone("leftShin", from: kneeLeft, to: ankleLeft)
-        setBone("rightThigh", from: hipRight, to: kneeRight)
-        setBone("rightShin", from: kneeRight, to: ankleRight)
-        setBone("leftUpperArm", from: shoulderLeft, to: elbowLeft)
-        setBone("leftForearm", from: elbowLeft, to: wristLeft)
-        setBone("rightUpperArm", from: shoulderRight, to: elbowRight)
-        setBone("rightForearm", from: elbowRight, to: wristRight)
-        setBone("body", from: [0, hipHeight, 0], to: [0, hipHeight + 0.5, lean])
-        joints["head"]?.position = [0, hipHeight + 0.72, lean]
-        joints["hair"]?.position = [0, hipHeight + 0.81, lean - 0.015]
-        joints["bun"]?.position = [0, hipHeight + 0.83, lean - 0.13]
-        joints["leftSkate"]?.position = ankleLeft
-        joints["rightSkate"]?.position = ankleRight
-        joints["leftBlade"]?.position = ankleLeft + [0, -0.065, 0.02]
-        joints["rightBlade"]?.position = ankleRight + [0, -0.065, 0.02]
+        setBone("leftThigh", from: pose.leftLeg.start, to: pose.leftLeg.joint)
+        setBone("leftShin", from: pose.leftLeg.joint, to: pose.leftLeg.end)
+        setBone("rightThigh", from: pose.rightLeg.start, to: pose.rightLeg.joint)
+        setBone("rightShin", from: pose.rightLeg.joint, to: pose.rightLeg.end)
+        setBone("leftUpperArm", from: pose.leftArm.start, to: pose.leftArm.joint)
+        setBone("leftForearm", from: pose.leftArm.joint, to: pose.leftArm.end)
+        setBone("rightUpperArm", from: pose.rightArm.start, to: pose.rightArm.joint)
+        setBone("rightForearm", from: pose.rightArm.joint, to: pose.rightArm.end)
+        setBone("body", from: pose.pelvis, to: pose.shoulders)
+        setBone("hips", from: pose.leftLeg.start, to: pose.rightLeg.start)
+        setBone("shoulders", from: pose.leftArm.start, to: pose.rightArm.start)
+        setBone("neck", from: pose.shoulders, to: pose.shoulders + [0, SkaterRig.neckLength, 0])
+        joints["head"]?.position = pose.head
+        joints["hair"]?.position = pose.head + [0, 0.09, -0.015]
+        joints["bun"]?.position = pose.head + [0, 0.11, -0.13]
+        joints["leftSkate"]?.position = pose.leftLeg.end
+        joints["rightSkate"]?.position = pose.rightLeg.end
+        joints["leftBlade"]?.position = pose.leftLeg.end + SkaterRig.bladeOffset
+        joints["rightBlade"]?.position = pose.rightLeg.end + SkaterRig.bladeOffset
+        joints["leftKnee"]?.position = pose.leftLeg.joint
+        joints["rightKnee"]?.position = pose.rightLeg.joint
+        joints["leftElbow"]?.position = pose.leftArm.joint
+        joints["rightElbow"]?.position = pose.rightArm.joint
+        joints["leftHand"]?.position = pose.leftArm.end
+        joints["rightHand"]?.position = pose.rightArm.end
     }
 
     private func makeSkater() {
         let skin = UIColor(red: 0.77, green: 0.53, blue: 0.39, alpha: 1)
         let leggings = UIColor(red: 0.2, green: 0.22, blue: 0.34, alpha: 1)
-        for name in ["leftThigh", "leftShin", "rightThigh", "rightShin"] {
-            addBone(name, radius: 0.065, color: leggings)
+        for side in ["left", "right"] {
+            addBone("\(side)Thigh", length: SkaterRig.thighLength, radius: 0.065, color: leggings)
+            addBone("\(side)Shin", length: SkaterRig.shinLength, radius: 0.065, color: leggings)
+            addBone("\(side)UpperArm", length: SkaterRig.upperArmLength, radius: 0.045, color: skin)
+            addBone("\(side)Forearm", length: SkaterRig.forearmLength, radius: 0.045, color: skin)
+            addJoint("\(side)Knee", mesh: .generateSphere(radius: 0.065), color: leggings)
+            addJoint("\(side)Elbow", mesh: .generateSphere(radius: 0.045), color: skin)
+            addJoint("\(side)Hand", mesh: .generateSphere(radius: 0.055), color: skin)
         }
-        for name in ["leftUpperArm", "leftForearm", "rightUpperArm", "rightForearm"] {
-            addBone(name, radius: 0.045, color: skin)
-        }
+        addBone("hips", length: SkaterRig.hipWidth, radius: 0.09, color: leggings)
+        addBone("shoulders", length: SkaterRig.shoulderWidth, radius: 0.07, color: .systemPurple)
+        addBone("neck", length: SkaterRig.neckLength, radius: 0.055, color: skin)
         torso.model = ModelComponent(mesh: .generateSphere(radius: 1), materials: [material(.systemPurple)])
-        skater.addChild(torso)
+        torso.scale = [0.2, SkaterRig.torsoLength / 2, 0.16]
+        articulatedSkater.addChild(torso)
         bones["body"] = torso
 
         addJoint("head", mesh: .generateSphere(radius: 0.16), color: skin)
@@ -162,25 +182,23 @@ final class RinkRenderer {
         }
     }
 
-    private func addBone(_ name: String, radius: Float, color: UIColor) {
+    private func addBone(_ name: String, length: Float, radius: Float, color: UIColor) {
         let entity = ModelEntity(mesh: .generateSphere(radius: 1), materials: [material(color)])
-        entity.scale = [radius, 0.2, radius]
+        entity.scale = [radius, length / 2, radius]
         bones[name] = entity
-        skater.addChild(entity)
+        articulatedSkater.addChild(entity)
     }
 
     private func addJoint(_ name: String, mesh: MeshResource, color: UIColor) {
         let entity = ModelEntity(mesh: mesh, materials: [material(color)])
         joints[name] = entity
-        skater.addChild(entity)
+        articulatedSkater.addChild(entity)
     }
 
     private func setBone(_ name: String, from start: SIMD3<Float>, to end: SIMD3<Float>) {
-        guard let entity = bones[name] else { return }
+        guard let entity = bones[name] else { preconditionFailure("Missing rig bone: \(name)") }
         entity.position = (start + end) / 2
         entity.orientation = simd_quatf(from: [0, 1, 0], to: simd_normalize(end - start))
-        let radius: Float = name == "body" ? 0.2 : name.contains("Arm") || name.contains("Forearm") ? 0.045 : 0.065
-        entity.scale = [radius, simd_distance(start, end) / 2, radius]
     }
 
     private func material(_ color: UIColor) -> SimpleMaterial {
