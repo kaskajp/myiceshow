@@ -1,6 +1,6 @@
 # Animation pipeline — validation plan
 
-Status: **project-authored skinned USDZ import exercised; production character and reviewed animation clips not selected**.
+Status: **fixture import, external-rig skeletal playback, and a Blender-native skater calibration export exercised; production character and reviewed skating clips not selected**.
 
 ## Implemented foundation
 
@@ -32,7 +32,15 @@ The acceptance package needs:
 - Root-motion convention, support-foot contacts, toe/blade orientation, takeoff/landing landmarks, entry/exit facing, and which sections may change duration.
 - Export settings and an actual imported sample that plays on the target iOS runtime. A candidate USD/USDZ workflow is worth testing, not yet a committed production pipeline.
 
-The installed Xcode 27 SDK exposes RealityKit joint-name, joint-transform, and animation-resource APIs. The project-authored fixture has now been generated, imported, and pose-driven on the iOS simulator. That is not proof that an arbitrary exported rig, clip, blend layer, or outfit imports correctly. No external character or authored skating clip has been imported, and no DCC/exporter workflow has been verified.
+The [five-move review brief](move-validation-brief.md) specifies proposed review variants, the current lab's contact/edge limitations, and the evidence and acceptance checks needed for that package. Written terminology and [sampled completed demonstrations](demonstration-review.md) have been inspected; precise variant confirmation and coaching sign-off remain pending.
+
+The [external character assessment](character-rig-assessment.md) records a pinned CC0 KayKit rig, decoded skin/clip data, native conversion failures, and a candidate-specific joint-path correction that exposes 41 joints. An isolated iOS simulator study demonstrates playback and repeated seeking when the imported skeletal leaf is explicitly bound to the model. Its original scene-timeline route does not deform the skin and remains a failing comparison. The app's fixture adapter rejects that different rig as intended. The donor has not entered My Ice Show and is not a production skater.
+
+The subsequent [Blender-native skater study](skater-dcc-study.md) saves editable DCC source with curved blade geometry, exports a two-second calibration clip, and compares the exported bind/rest data and skin deformation to native Blender samples. Both the original scene route and direct skeletal route pass repeated seeking on the iOS simulator for this simple scene, without USD repair. This is a controlled technical export, not production art or approved skating. The app adapter now checks stored rest transforms, inverse bind matrices, and parent relationships as well as names/counts. It explicitly rejects this rig's different bone-local frames; passing native playback does not make it compatible with the fixture sampler. See the [retained importer checks](skater-fixture.md#repeatable-importer-checks).
+
+The main app exposes a separate [native clip preview](native-clip-preview.md) using a bundled snapshot of that project-authored calibration. It binds the imported skeletal leaf to its own model without replacing samples or retargeting. Single clip mode uses native playback; Show timeline mode keeps that controller paused and seeks it from the existing Studio clock. A shared slot resolver supplies absolute local times to both the native diagnostic mapping and procedural sampler. Calibration restarts at 1× per slot, then holds its endpoint; closing restores the entry playhead. The saved-show schema is unchanged. This establishes a timeline-control seam, not production clip selection, skating correctness, transitions, root-motion composition, or music synchronization.
+
+The installed Xcode 27 SDK exposes RealityKit joint-name, joint-transform, and animation-resource APIs. The project-authored fixture has been generated, imported, and pose-driven on the iOS simulator. The external candidate's direct skeletal route has now been exercised in a separate simulator app. Neither proves that an arbitrary exported rig, clip, blend layer, or outfit imports correctly. No external character or authored skating clip has been integrated into My Ice Show, and no production DCC/exporter workflow has been verified.
 
 ## Coordinate and integration checks
 
@@ -59,7 +67,7 @@ Only then estimate asset production per variation, expand the collection across 
 - Jump takeoff, apex, and landing timing stayed fixed at card durations of 2.5, 3, 5, and 8 seconds.
 - The final build installed and launched on the iPhone 16 Pro / iOS 18.6 simulator. Its example played to the 18-second endpoint and returned to Play. Scrubbing to approximately 16 seconds displayed the articulated lunge with its directional shadow.
 
-These are geometric and timing results, not coaching approval or production asset validation. Video review, a production skinned character with documented rights, physically correct blade contacts, self-collision assessment, real imported clip blending, and physical-device profiling remain open. The later [skinned fixture study](skater-fixture.md) closes only the project-authored mesh import and sampled-joint integration gate.
+These are geometric and timing results, not coaching approval or production asset validation. Expert review of the [inspected demonstrations](demonstration-review.md), a production skinned character with documented rights, physically correct blade contacts, self-collision assessment, real imported clip blending, and physical-device profiling remain open. The later [skinned fixture study](skater-fixture.md) closes only the project-authored mesh import and sampled-joint integration gate.
 
 ### Spin contact follow-up
 

@@ -17,6 +17,27 @@ enum SkaterSkeleton {
         "pelvis/spine/rightShoulder/rightElbow/rightWrist"
     ]
     static let parentIndices: [Int?] = [nil, 0, 1, 0, 3, 4, 0, 6, 7, 1, 9, 10, 1, 12, 13]
+    static let restTranslations: [SIMD3<Float>] = [
+        [0, SkaterRig.ankleHeight + SkaterRig.shinLength + SkaterRig.thighLength, 0],
+        [0, SkaterRig.torsoLength, 0], [0, SkaterRig.headOffset, 0],
+        [-SkaterRig.hipWidth / 2, 0, 0],
+        [0, -SkaterRig.thighLength, 0], [0, -SkaterRig.shinLength, 0],
+        [SkaterRig.hipWidth / 2, 0, 0],
+        [0, -SkaterRig.thighLength, 0], [0, -SkaterRig.shinLength, 0],
+        [-SkaterRig.shoulderWidth / 2, 0, 0],
+        [-SkaterRig.upperArmLength, 0, 0], [-SkaterRig.forearmLength, 0, 0],
+        [SkaterRig.shoulderWidth / 2, 0, 0],
+        [SkaterRig.upperArmLength, 0, 0], [SkaterRig.forearmLength, 0, 0]
+    ]
+    static let bindTranslations: [SIMD3<Float>] = {
+        var positions = restTranslations
+        for index in positions.indices {
+            if let parent = parentIndices[index] {
+                positions[index] += positions[parent]
+            }
+        }
+        return positions
+    }()
 
     static func transforms(for pose: SkaterPose) -> [SkaterJointTransform] {
         let upright = simd_quatf(from: [0, 1, 0], to: simd_normalize(pose.shoulders - pose.pelvis))

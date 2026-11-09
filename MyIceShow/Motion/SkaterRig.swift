@@ -23,6 +23,7 @@ enum SkaterRig {
     static let forearmLength: Float = 0.25
     static let torsoLength: Float = 0.5
     static let neckLength: Float = 0.12
+    static let headOffset: Float = 0.22
     static let hipWidth: Float = 0.26
     static let shoulderWidth: Float = 0.46
     static let ankleHeight: Float = 0.08
@@ -78,7 +79,7 @@ enum SkaterRig {
             rightArm: arm(from: shoulderRight, to: wristRight),
             pelvis: pelvis,
             shoulders: shoulders,
-            head: shoulders + SIMD3(0, 0.22, 0)
+            head: shoulders + SIMD3(0, headOffset, 0)
         )
     }
 

@@ -32,11 +32,32 @@ The generator builds a temporary USDA stage, validates it with `usdchecker --ark
 
 `SkaterSkeleton` maps the current `SkaterPose` into desired skeleton-space joint frames, then converts them into parent-local translations and rotations. Thigh/shin and upper-arm/forearm axes align with their current limb directions. Ankle orientation remains level in skater-local space so the fixture's blades stay horizontal. Bone twist uses minimal axis alignment, not an anatomical twist solver.
 
-`ImportedSkater` validates the joint schema, transform count, and named costume material before reporting readiness. It maps imported joint order to the sampler's order, assigns `jointTransforms`, and updates only the named costume slot. Import happens asynchronously; dismantling the rink cancels its loading task. Missing assets, incompatible skeletons, and missing costume materials produce explicit errors. Studio does not silently substitute primitives: the user can select Articulated if importing fails.
+`ImportedSkater` validates the joint schema, transform count, and named costume material before reporting readiness. The sole stored mesh skeleton must also match the fixture's parent relationships, parent-local rest translations, identity rest rotations, unit scale, and skeleton-space inverse bind matrices. Expected translations derive from `SkaterRig` dimensions, not the bent sampled neutral pose. Translation/scale distances, sign-equivalent quaternion-vector distance, and individual matrix elements use a `0.00001` tolerance; non-finite values fail. This is a fixture calibration check, not anatomical or arbitrary-character validation.
+
+Validation reads the mesh skeleton's stored rest/bind data, not the mutable animated `jointTransforms`. Joint order may differ: parents and frames are matched by full joint name, and runtime pose assignment maps imported joint order to the sampler's order. The importer updates only the named costume slot. Import happens asynchronously; dismantling the rink cancels its loading task. Missing assets, incompatible skeletons, incompatible bind/rest calibration, and missing costume materials produce explicit errors. Studio does not silently substitute primitives: the user can select Articulated if importing fails.
 
 The same skater root receives the circular travel, jump height, heading, and spin-contact placement correction in either appearance. Appearance is a lab display choice, not saved show content. Switching it does not reset the routine or its playback position.
 
 The package's `Rest` skeleton animation only supplies a bind/rest fixture. It contains **no authored skating animation clips**. Runtime joints come from the existing absolute-time procedural sampler; no independent animation playback clock is started. Seeking or replaying therefore computes the same joint transforms rather than accumulating frame-dependent rotations.
+
+## Repeatable importer checks
+
+Run the retained native diagnostic against the bundled fixture from the repository root (Xcode command-line tools and macOS 15 or later):
+
+```sh
+xcrun swiftc -swift-version 6 -strict-concurrency=complete -parse-as-library \
+  tools/check-skater-import.swift \
+  MyIceShow/Rendering/ImportedSkater.swift \
+  MyIceShow/Motion/SkaterSkeleton.swift MyIceShow/Motion/SkaterRig.swift \
+  MyIceShow/Motion/SkatingMotion.swift -o /tmp/check-skater-import
+/tmp/check-skater-import MyIceShow/Assets/SkaterFixture.usdz
+```
+
+The diagnostic exits nonzero on a failed check. It loads the real fixture, verifies pose assignment at out-of-order phases of all five moves, and revalidates after posing. Modified mesh skeletons must reject rest offsets, rotation, scale, inverse-bind offsets/axes, a wrong parent, and non-finite rest/rotation/scale/bind data. Quaternion sign equivalence and small export rounding must remain accepted. A reordered skeleton with remapped parents and skin influences must still assign poses by joint name. These checks protect the adapter's decisions, not the correctness of the procedural skating or the renderer's per-vertex skinning.
+
+Observed on November 8, 2026: all retained checks pass under Swift 6 strict concurrency. A scratch copy with the calibration call removed fails with `Accepted rest offset` and exit 1. The native import probe accepts the original fixture, rejects the same-name Blender DCC study with `incompatibleBindPose`, and continues to reject the unrelated 41-joint donor with `incompatibleSkeleton`. Negative candidates stay outside the app and repository. A checked DCC package is now bundled separately for the [native clip preview](native-clip-preview.md), never as an accepted replacement for this procedural fixture.
+
+The main app build also succeeds for the iOS simulator. On an iPhone 16 Pro simulator running iOS 18.6, Studio loads and renders the original fixture, completes the 18-second routine, and scrubs back to Upright spin at 0:10. Switching to Articulated and back preserves that displayed position. A separate temporary app (`dev.myiceshow.bindcheck`) built from the same source with the DCC package substituted displays the bind/rest failure, leaves Imported skin selected with an empty rink, and renders the primitive skater only after explicitly selecting Articulated. The main app's bundle resource and saved-show storage are not replaced by that failure build. These are simulator checks, not physical-device profiling or coach approval.
 
 ## Verification
 
@@ -55,6 +76,6 @@ The test installer retained an omitted resource when a package was installed ove
 
 ## Still not validated
 
-No production character has been selected, no reviewed skating clip has been imported, and no Blender/Maya/other DCC export pipeline has been tested. The fixture is not a general-purpose retargeter and does not validate arbitrary skeletons, animation blending, facial animation, detailed garment deformation, self-collision, realistic blade/edge mechanics, or body balance. Its simple material groups are not a production outfit system.
+No production character has been selected and no reviewed skating clip has been imported. The later [Blender-native skater study](skater-dcc-study.md) exercises a separate DCC calibration export; it does not turn this handwritten fixture into a DCC or production asset. The fixture is not a general-purpose retargeter and does not validate arbitrary skeletons, animation blending, facial animation, detailed garment deformation, self-collision, realistic blade/edge mechanics, or body balance. Its simple material groups are not a production outfit system.
 
 Physical-iPhone/iPad performance, memory/energy budgets, camera readability with final art, expert review, and production-asset rights remain acceptance gates in the [animation pipeline](animation-pipeline.md).

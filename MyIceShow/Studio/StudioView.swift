@@ -14,6 +14,7 @@ struct StudioView: View {
     @State private var costume: CostumeColor = .lilac
     @State private var appearance = SkaterAppearance.importedSkin
     @State private var importStatus = ImportedSkaterStatus.loading
+    @State private var isNativeClipPresented = false
     @State private var showTitle = "My first show"
     @State private var currentShowID: UUID?
     @State private var savedContent: ShowContent?
@@ -115,6 +116,7 @@ struct StudioView: View {
             if phase != .active { player.pause() }
         }
         .onDisappear { player.pause() }
+        .sheet(isPresented: $isNativeClipPresented) { NativeClipPreview(clips: clips, showPlayer: player) }
     }
 
     private var header: some View {
@@ -198,6 +200,12 @@ struct StudioView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("rig-import-status")
+                Button("Native clip preview", systemImage: "figure.skating") {
+                    player.pause()
+                    isEditingName = false
+                    isNativeClipPresented = true
+                }
+                .buttonStyle(.bordered)
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 12)

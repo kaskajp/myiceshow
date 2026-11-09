@@ -85,6 +85,11 @@ struct MotionSample {
     var clipID: UUID?
 }
 
+struct RoutinePosition {
+    let clipIndex: Int
+    let localTime: Double
+}
+
 enum SkatingMotion {
     static let maximumDuration: Double = 60
     static let maximumClipDuration: Double = 8
@@ -95,30 +100,37 @@ enum SkatingMotion {
         clips.reduce(0) { $0 + $1.duration }
     }
 
-    static func sample(clips: [RoutineClip], at time: Double) -> MotionSample {
+    static func position(clips: [RoutineClip], at time: Double) -> RoutinePosition? {
+        guard time.isFinite else { return nil }
         let elapsed = min(max(time, 0), duration(of: clips))
         var startTime: Double = 0
-        var distance: Double = 0
-        var rotation: Double = 0
-
         for (index, clip) in clips.enumerated() {
             let endTime = startTime + clip.duration
             if elapsed < endTime || index == clips.count - 1 {
-                return sample(
-                    clip: clip,
-                    localTime: elapsed - startTime,
-                    distance: distance,
-                    rotation: rotation,
-                    entrySpeed: index == 0 ? 0 : boundarySpeed(clips[index - 1], clip),
-                    exitSpeed: index + 1 == clips.count ? 0 : boundarySpeed(clip, clips[index + 1])
-                )
+                return RoutinePosition(clipIndex: index, localTime: elapsed - startTime)
             }
             startTime = endTime
+        }
+        return nil
+    }
+
+    static func sample(clips: [RoutineClip], at time: Double) -> MotionSample {
+        guard let position = position(clips: clips, at: time) else {
+            return rootSample(distance: 0, rotation: 0)
+        }
+        var distance: Double = 0
+        var rotation: Double = 0
+        for clip in clips.prefix(position.clipIndex) {
             distance += clip.move.travel
             rotation += setupRotation(for: clip.move, after: rotation) + clip.move.rotation
         }
-
-        return rootSample(distance: distance, rotation: rotation)
+        let index = position.clipIndex
+        return sample(
+            clip: clips[index], localTime: position.localTime,
+            distance: distance, rotation: rotation,
+            entrySpeed: index == 0 ? 0 : boundarySpeed(clips[index - 1], clips[index]),
+            exitSpeed: index + 1 == clips.count ? 0 : boundarySpeed(clips[index], clips[index + 1])
+        )
     }
 
     private static func sample(

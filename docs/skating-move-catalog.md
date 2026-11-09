@@ -34,7 +34,7 @@ Proposed animation complexity:
 - **High:** airborne rotation, rapid turns, spin pivots, or difficult positions.
 - **Very high:** coupled skaters or complex multi-element transitions.
 
-Sources are linked by identifier in the final column. **All per-variation demonstration reviews are pending.** The [animation reference register](animation-reference-register.md) now records 12 exact tutorial links with publisher provenance and metadata checks, but no coaching approval. A page, title, or written syllabus is not a reviewed demonstration. A family source does not establish every listed variation. Entries marked **Source pending** still need a primary reference. No animation is approved from this table alone.
+Sources are linked by identifier in the final column. **All per-variation coaching approvals are pending.** The [animation reference register](animation-reference-register.md) records 12 metadata-only tutorial candidates and two downloadable videos with [sampled-frame inspection records](demonstration-review.md). A page, title, or written syllabus is not a reviewed demonstration. A family source does not establish every listed variation. Entries marked **Source pending** still need a primary reference. No animation is approved from this table alone.
 
 ## Movement families
 
@@ -79,7 +79,7 @@ For T03–T10, the eventual variation records must distinguish starting foot, fo
 | ID | Family / variations | Movement | Proposed preparation | Tier | Animation | Source |
 | --- | --- | --- | --- | --- | --- | --- |
 | F01 | Spiral; forward/backward, edge variants | Extended free leg above hip | One-foot balance, extension | B–A | High | [S1](#s1), [S8](#s8) |
-| F02 | Lunge | Bent support leg, extended trailing leg | Controlled glide, low balance | B–I | Medium | Source pending |
+| F02 | Lunge | Bent support leg, extended trailing leg | Controlled glide, low balance | B–I | Medium | [S9](#s9), printed p. 46 |
 | F03 | Spread eagle; inside/outside | Opposed feet on matching edges | Edge control, turnout | I–A | High | [S8](#s8) |
 | F04 | Ina Bauer | Parallel blades with opposed feet | Glide control, turnout | I–A | High | [S8](#s8) |
 | F05 | Hydroblading | Deep-edge, low-body movement | Deep-edge balance | A | High | [S8](#s8) |
@@ -109,7 +109,7 @@ Named difficult positions, catch-foot variants, illusion movements, and travelin
 
 | ID | Family / variations | Movement | Proposed preparation | Tier | Animation | Source |
 | --- | --- | --- | --- | --- | --- | --- |
-| J01 | Two-foot hop | Small airborne movement | Glide and landing balance | B | Medium | Source pending |
+| J01 | Two-foot hop / two-foot jump | Small jump from both feet | Glide and landing balance | B | Medium | [S9](#s9), printed p. 34 |
 | J02 | Bunny hop | Non-revolution beginner hop | One-foot glide, landing control | B | Medium | [S1](#s1) |
 | J03 | Mazurka | Small choreographic jump | Hop and toe-pick control | I | High | [S2](#s2) |
 | J04 | Waltz jump | Forward-entry half revolution | Takeoff and landing edges | B–I | High | [S2](#s2) |
@@ -188,16 +188,18 @@ These are research needs, not a committed schema. Keep technical metadata separa
 ## Unresolved questions and coverage gaps
 
 - **Completeness:** 59 family records do not enumerate all variations or disciplines. Historical, unusual, and choreographic movements remain undercovered.
-- **Demonstrations:** no per-variation clip has been reviewed. The brief's correct-execution reference requirement is not complete.
+- **Demonstrations:** four sections of D13/D14 have sampled-frame inspection records, not coaching approval or a complete variation review. The brief's correct-execution reference requirement is not complete.
 - **Difficulty:** the B/I/A/E mapping and proposed preparation need coaching review. Curriculum placement, competition scoring, flexibility, and learning difficulty measure different things.
 - **Taxonomy:** distinguish family, position, entry, variation, and full sequence before building filters or generating assets.
 - **Direction:** decide whether the app supports both rotational directions and both feet; visual mirroring alone needs expert validation.
 - **Source season:** S3 and S5 are listed as 2026/27 handbooks. S2 is older curriculum material, not current competition rules; do not treat these sources as synchronized editions.
-- **Source coverage:** F02 and J01 still lack primary references. Several family references do not establish all the listed directional variations; these need individual confirmation.
+- **Source coverage:** S9 supplies primary written descriptions for F02 and J01. Several family references still do not establish all the listed directional variations; these need individual confirmation.
 - **Technology and cost:** the procedural RealityKit lab is not a production rig or an animation-source decision. Production estimates, rendering comparisons, and physical-device benchmarks remain pending.
 - **Production rights:** no reference footage, animation, character, or music asset has been licensed by this research.
 
 ## Sources
+
+The [inspection record](demonstration-review.md) preserves the downloaded S9 version, guide page mapping, and reviewed segments for D13/D14.
 
 Sources accessed November 8, 2026. Favor federation terminology and learning syllabi; preserve each publisher's own scope. Source access is not expert sign-off.
 
@@ -267,3 +269,9 @@ Alphabetical sections consulted:
 - https://info.skatecanada.ca/index.php/en-ca/other-categories/defined-terms/s.html
 - https://info.skatecanada.ca/index.php/en-ca/other-categories/defined-terms/s.html?start=20
 - https://info.skatecanada.ca/index.php/en-ca/other-categories/defined-terms/t.html
+
+### S9
+
+**Special Olympics — Figure Skating Coaching Guide (2021).** Primary descriptions for a two-foot jump (printed p. 34), forward lunge (p. 46), and waltz jump (p. 54). Its program levels are not universal difficulty ratings. Page images were inspected; see the [demonstration record](demonstration-review.md) for version hashes and limits.
+
+https://media.specialolympics.org/resources/sports-essentials/coaching-guides/Sports-Essentials-Figure-Skating-Coaching-Guide-2021-v2.pdf
