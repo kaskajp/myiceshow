@@ -3,7 +3,12 @@ import RealityKit
 import SwiftUI
 
 enum StudySample {
-    #if SKATER_DCC_STUDY
+    #if SKATER_GLIDE_STUDY
+    static let title = "Glide Candidate Study"
+    static let jointCount = 15
+    static let clip = "Sustained glide candidate (unreviewed)"
+    static let notice = "Unreviewed glide — no entry, stop, or transition is authored"
+    #elseif SKATER_DCC_STUDY
     static let title = "Skater DCC Export Study"
     static let jointCount = 15
     static let clip = "Calibration (not skating)"
@@ -54,6 +59,9 @@ struct StudyView: View {
             Text(study.verdict).font(.caption.monospaced())
                 .accessibilityIdentifier("study-verdict")
             Text(study.playbackEvidence).font(.caption.monospaced())
+            #if SKATER_GLIDE_STUDY
+            Text(study.endpointEvidence).font(.caption.monospaced())
+            #endif
             Text(StudySample.notice)
                 .font(.caption2).foregroundStyle(.secondary)
         }
@@ -101,6 +109,15 @@ final class PlaybackStudy: ObservableObject {
     private var playbackFrames = 0
     private var playbackChange: Float = 0
     private var observingPlayback = false
+    #if SKATER_GLIDE_STUDY
+    @Published private(set) var endpointEvidence = "Endpoint not checked"
+    private var referenceFrames: [JointTransforms] = []
+    private var frameInterval = 0.0
+    private var referenceModelTransform = matrix_identity_float4x4
+    private var authoredError: Float = 0
+    private var nodeError: Float = 0
+    private var pendingEndpointFrame: Int?
+    #endif
 
     func load() async {
         guard entity == nil else { return }
@@ -124,6 +141,15 @@ final class PlaybackStudy: ObservableObject {
                   track.jointNames == skinned.jointNames else {
                 throw StudyError.unexpectedAnimationBinding
             }
+            #if SKATER_GLIDE_STUDY
+            guard abs(track.duration - 3) < 0.00001,
+                  track.frames.count > 1, track.frameInterval.isFinite, track.frameInterval > 0,
+                  abs(Double(track.frames.count - 1) * Double(track.frameInterval) - track.duration) < 0.00001 else {
+                throw StudyError.unexpectedAnimationBinding
+            }
+            referenceFrames = track.frames
+            frameInterval = Double(track.frameInterval)
+            #endif
             track.bindTarget = .jointTransforms
             track.fillMode = .both
             let skeletalResource = try AnimationResource.generate(with: track)
@@ -132,6 +158,9 @@ final class PlaybackStudy: ObservableObject {
             animation = skeletalResource
             entity = loaded
             model = skinned
+            #if SKATER_GLIDE_STUDY
+            referenceModelTransform = skinned.transformMatrix(relativeTo: nil)
+            #endif
             configureScene(with: loaded)
             controller = skinned.playAnimation(skeletalResource, transitionDuration: 0, startsPaused: true)
             subscription = view.scene.subscribe(to: SceneEvents.Update.self) { [weak self] _ in
@@ -155,6 +184,10 @@ final class PlaybackStudy: ObservableObject {
         playbackFrames = 0
         playbackChange = 0
         observingPlayback = true
+        #if SKATER_GLIDE_STUDY
+        pendingEndpointFrame = nil
+        endpointEvidence = "Endpoint not checked"
+        #endif
         controller = target.playAnimation(animation, transitionDuration: 0, startsPaused: false)
         status = "Playing \(StudySample.clip)"
     }
@@ -168,6 +201,10 @@ final class PlaybackStudy: ObservableObject {
     func seek(to fraction: Double) {
         guard let target = playbackTarget, let animation else { return }
         observingPlayback = false
+        #if SKATER_GLIDE_STUDY
+        pendingEndpointFrame = nil
+        endpointEvidence = "Endpoint not checked"
+        #endif
         if controller?.isValid != true || controller?.isComplete == true {
             controller?.stop()
             controller = target.playAnimation(animation, transitionDuration: 0, startsPaused: true)
@@ -196,6 +233,10 @@ final class PlaybackStudy: ObservableObject {
         phaseChange = 0
         timeError = 0
         captures = 0
+        #if SKATER_GLIDE_STUDY
+        authoredError = 0
+        nodeError = 0
+        #endif
         verdict = "Checking out-of-order poses"
         sequence = [0, 0.25, 0.75, 0.25, 0.5, 1, 0, 0.5, 1]
         seek(to: sequence.removeFirst())
@@ -208,6 +249,9 @@ final class PlaybackStudy: ObservableObject {
         pendingCapture = nil
         verifying = false
         ready = false
+        #if SKATER_GLIDE_STUDY
+        pendingEndpointFrame = nil
+        #endif
     }
 
     private func frame() {
@@ -230,14 +274,33 @@ final class PlaybackStudy: ObservableObject {
                 }
                 clock = String(format: "%.6f / %.6f s", animation.definition.duration, animation.definition.duration)
                 status = "Playback completed"
+                #if SKATER_GLIDE_STUDY
+                pendingEndpointFrame = frames + 8
+                #endif
             }
         }
+        #if SKATER_GLIDE_STUDY
+        if let pendingEndpointFrame, frames >= pendingEndpointFrame, let model, let expected = referenceFrames.last {
+            self.pendingEndpointFrame = nil
+            let poseError = Self.difference(Array(expected), model.jointTransforms)
+            let transformError = Self.matrixDifference(referenceModelTransform, model.transformMatrix(relativeTo: nil))
+            let retained = poseError < 0.00001 && transformError < 0.00001
+            endpointEvidence = String(format: "%@: endpoint pose %.8f; node %.8f", retained ? "PASS" : "NOT RETAINED", poseError, transformError)
+        }
+        #endif
         guard let pendingCapture, frames >= pendingCapture.frame, let model,
               let controller, let animation else { return }
         self.pendingCapture = nil
         let pose = model.jointTransforms
         let target = pendingCapture.fraction
         timeError = max(timeError, abs(controller.time - target * animation.definition.duration))
+        #if SKATER_GLIDE_STUDY
+        let authoredIndex = Int((target * animation.definition.duration / frameInterval).rounded())
+        let expectedError = referenceFrames.indices.contains(authoredIndex)
+            ? Self.difference(Array(referenceFrames[authoredIndex]), pose) : Float.infinity
+        authoredError = max(authoredError, expectedError)
+        nodeError = max(nodeError, Self.matrixDifference(referenceModelTransform, model.transformMatrix(relativeTo: nil)))
+        #endif
         if verifying {
             if firstPose.isEmpty { firstPose = pose }
             phaseChange = max(phaseChange, Self.difference(firstPose, pose))
@@ -251,8 +314,15 @@ final class PlaybackStudy: ObservableObject {
                 return
             }
             verifying = false
+            #if SKATER_GLIDE_STUDY
+            let passed = phaseChange > 0.00001 && repeatError < 0.00001 && timeError < 0.00001 && authoredError < 0.00001 && nodeError < 0.00001
+            #else
             let passed = phaseChange > 0.00001 && repeatError < 0.00001 && timeError < 0.00001
+            #endif
             verdict = String(format: "%@: %d captures\nphase %.8f; repeat %.8f; time %.8f", passed ? "PASS" : "NOT PROVEN", captures, phaseChange, repeatError, timeError)
+            #if SKATER_GLIDE_STUDY
+            verdict += String(format: "\nauthored %.8f; node %.8f", authoredError, nodeError)
+            #endif
         }
         clock = String(format: "%.6f / %.6f s", controller.time, controller.duration)
         status = "Paused at \(Int(target * 100))%; \(StudySample.jointCount) joints"
@@ -264,7 +334,14 @@ final class PlaybackStudy: ObservableObject {
         anchor.addChild(entity)
         let camera = PerspectiveCamera()
         camera.camera.fieldOfViewInDegrees = 45
+        #if SKATER_GLIDE_STUDY
+        camera.look(at: [-0.8, 1, 1.6], from: [4, 3.4, 8], relativeTo: nil)
+        let ice = ModelEntity(mesh: .generatePlane(width: 8, depth: 8), materials: [SimpleMaterial(color: .init(white: 0.98, alpha: 1), isMetallic: false)])
+        ice.position = [-1, 0, 1.6]
+        anchor.addChild(ice)
+        #else
         camera.look(at: [0, 1, 0], from: [3, 2.4, 5], relativeTo: nil)
+        #endif
         anchor.addChild(camera)
         let light = DirectionalLight()
         light.light.intensity = 2500
@@ -276,6 +353,16 @@ final class PlaybackStudy: ObservableObject {
     private var playbackTarget: Entity? {
         route == .scene ? entity : model
     }
+
+    #if SKATER_GLIDE_STUDY
+    private static func matrixDifference(_ first: simd_float4x4, _ second: simd_float4x4) -> Float {
+        (0..<4).reduce(0) { maximum, column in
+            let error = abs(first[column] - second[column])
+            guard error.indices.allSatisfy({ error[$0].isFinite }) else { return .infinity }
+            return max(maximum, error.max())
+        }
+    }
+    #endif
 
     private static func difference(_ first: [Transform], _ second: [Transform]) -> Float {
         guard first.count == second.count, !first.isEmpty else { return .infinity }

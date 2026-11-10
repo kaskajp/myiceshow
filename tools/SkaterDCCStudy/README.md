@@ -2,6 +2,10 @@
 
 This creates an editable `.blend`, a skinned USD stage, and a source-calibration report outside the repository. It is a **technical calibration study**, not final character art or a skating clip. The [assessment](../../docs/skater-dcc-study.md) records observed results and limitations.
 
+The separate [unreviewed sustained-glide candidate](../../docs/glide-candidate.md) adds offline authoring and geometric contact checks with `build-glide.py` / `validate-glide.py`, plus an explicit `SKATER_GLIDE_STUDY` profile in the isolated iOS playback app. It does not replace calibration or enter the app's move library.
+
+`audit-glide-repeat.py` checks two constantly placed copies of that candidate against a continuing arc and reports whole-mesh seam gaps and velocity jumps separately. See the [repeat-audit command and results](../../docs/glide-candidate.md#repeated-glide-seam-audit). Passing sampled position/contact checks is not smooth-velocity or skating approval; the current linear pelvis track has a measured seam-velocity kink.
+
 Requirements: **Blender 4.5 LTS** with its bundled `bpy`/`pxr` Python modules, plus Apple's `usdzip` and `usdchecker`. No package is added to My Ice Show. The observed build used Blender **4.5.14 LTS**, build `62c1db4208e8`, on Apple Silicon. The official [release directory](https://download.blender.org/release/Blender4.5/) includes the installer and checksums; the macOS ARM64 DMG's SHA-256 was `65134d9b07b20e2fa8d3c9e44f6f44ffb5c9774dd521b95f50387310241ca170`. This session used the signed application on a temporary, read-only mounted DMG; it did not install Blender in Applications.
 
 ## Generate, export, and check
